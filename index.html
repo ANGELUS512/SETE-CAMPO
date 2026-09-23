@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>SETE Campo — Registro de Inspección</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SETE Campo">
+<meta name="theme-color" content="#f4f5f7">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f5f7; --surface:rgba(255,255,255,.97); --surface2:rgba(237,239,242,.97);
+    --border:#d7dbe1; --border-soft:#e4e7eb;
+    --text:#1c2228; --text-dim:#5b6572;
+    --accent:#c67f16; --accent-soft:#fbf0da;
+    --accent2:#2c8078; --accent2-soft:#e1f2f0;
+    --danger:#c23f2c; --radius:5px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--bg),var(--bg)),
+      repeating-linear-gradient(0deg, rgba(20,25,30,0.025) 0px, rgba(20,25,30,0.025) 1px, transparent 1px, transparent 24px),
+      repeating-linear-gradient(90deg, rgba(20,25,30,0.025) 0px, rgba(20,25,30,0.025) 1px, transparent 1px, transparent 24px);
+    color:var(--text); font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .watermark{
+    position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 170 170'%3E%3Cg transform='translate(35,35)'%3E%3Ccircle cx='50' cy='50' r='38' fill='none' stroke='%23c67f16' stroke-width='4'/%3E%3Cpath d='M22 52c8-14 16 14 24 0s16-14 24 0s8 14 8 14' fill='none' stroke='%232c8078' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat:repeat;
+    background-size:150px 150px;
+    opacity:0.1;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:12px 12px 50px;}
+
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .app-icon{width:36px;height:36px;border-radius:9px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+  .brand-text h1{font-family:'Oswald',sans-serif;font-weight:600;font-size:15.5px;letter-spacing:.01em;margin:0;color:var(--text);line-height:1.15;}
+  .brand-text .sub{font-size:10px;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;}
+  .counter{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text-dim);text-align:right;}
+  .counter b{color:var(--accent);font-size:13.5px;}
+
+  .linea-bar{
+    background:var(--surface); border:1px solid var(--accent2); border-left-width:4px;
+    border-radius:8px; padding:8px 12px; margin-bottom:8px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .linea-bar .lbl{font-family:'Oswald',sans-serif;font-size:10.5px;letter-spacing:.1em;color:var(--accent2);font-weight:600;white-space:nowrap;}
+  .linea-bar input{
+    flex:1; min-width:160px; background:transparent; border:none; color:var(--text);
+    font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; padding:3px 2px; outline:none;
+  }
+
+  nav.tabs{display:flex;gap:6px;margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;}
+  nav.tabs button{flex:1;border:none;background:transparent;color:var(--text-dim);font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.03em;font-size:13px;padding:9px 8px;border-radius:6px;cursor:pointer;transition:background .15s,color .15s;}
+  nav.tabs button.active{background:var(--accent2);color:#ffffff;}
+
+  .nps-hint{font-size:10px;color:var(--text-dim);margin:-3px 0 8px;line-height:1.35;}
+  .nps-hint.filled{color:var(--accent2);}
+
+  .gps-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-dim);margin-top:2px;padding-top:8px;border-top:1px solid var(--border-soft);}
+  .gps-row.ok{color:var(--accent2);}
+  .gps-row.error{color:var(--danger);}
+
+  .foto-row{display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);}
+  .foto-btn{display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;cursor:pointer;padding:10px 16px;font-size:13px;}
+  .foto-preview-wrap{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
+  .foto-preview-wrap img{max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border);}
+
+  .panel{display:none;}
+  .panel.active{display:block;animation:fade .18s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:10px;}
+  .card h2{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-dim);margin:0 0 9px;}
+
+  .row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .field{flex:1;min-width:110px;display:flex;flex-direction:column;gap:4px;}
+  .field.small{max-width:110px;}
+  label{font-size:11.5px;color:var(--text-dim);font-weight:600;letter-spacing:.02em;}
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    background:var(--surface2);border:1px solid var(--border);color:var(--text);
+    border-radius:6px;padding:9px 10px;font-size:14.5px;font-family:'IBM Plex Mono',monospace;width:100%;
+  }
+  select{font-family:'Inter',sans-serif;font-size:14px;}
+  textarea{font-family:'Inter',sans-serif;font-size:13.5px;resize:vertical;min-height:44px;}
+  input#codigo{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.03em;font-size:17px;text-transform:uppercase;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent2);box-shadow:0 0 0 3px rgba(44,128,120,.18);}
+
+  .lect-head{display:grid;grid-template-columns:26px 68px 1fr;gap:6px;margin-bottom:6px;}
+  .lect-head span{font-size:9.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;text-align:center;}
+  .lect-head .sub-labels{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+  .filas-info-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;font-size:11.5px;color:var(--text-dim);}
+  .filas-btns{display:flex;gap:6px;}
+  .lect-row{display:grid;grid-template-columns:26px 68px 1fr;gap:6px;align-items:center;margin-bottom:6px;}
+  .fila-label{font-size:10px;color:var(--text-dim);text-align:right;padding-right:2px;}
+  .nomlim-col{display:flex;flex-direction:column;gap:3px;}
+  #lectRowsContainer.modo-simple .nomlim-col{visibility:hidden;}
+  #nominalLimiteSimpleRow{display:none;}
+  .nominal-input, .limite-input, .nominal-simple-input, .limite-simple-input{
+    border-color:var(--accent2)!important;background:var(--accent2-soft)!important;
+    -moz-appearance:textfield;
+  }
+  .nominal-input, .limite-input{ text-align:center;padding:5px 4px;font-size:11.5px;width:100%; }
+  .limite-input, .limite-simple-input{border-color:var(--accent)!important;background:var(--accent-soft)!important;color:var(--accent)!important;}
+  .nominal-input::-webkit-outer-spin-button, .limite-input::-webkit-outer-spin-button,
+  .nominal-input::-webkit-inner-spin-button, .limite-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .input-warning{border-color:var(--danger)!important;background:rgba(194,63,44,.16)!important;}
+  .lecturas-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+  .lecturas-grid input{text-align:center;padding:10px 4px;font-size:14px;}
+
+  .toggle-row{display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-size:13px;color:var(--text-dim);}
+  .toggle-row input{width:16px;height:16px;accent-color:var(--accent2);}
+
+  .btn{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.03em;font-size:14px;border:none;border-radius:7px;padding:11px 16px;cursor:pointer;transition:filter .12s, transform .05s;}
+  label.btn{display:flex;align-items:center;justify-content:center;width:100%;}
+  .btn:active{transform:scale(.98);}
+  .btn-primary{background:var(--accent);color:#241a08;width:100%;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-accent2{background:var(--accent2);color:#ffffff;border:1px solid var(--accent2);}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid rgba(194,63,44,.4);font-size:12.5px;padding:6px 10px;}
+  .btn-small{font-size:12.5px;padding:7px 10px;}
+
+  .info-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11.5px;color:var(--text-dim);line-height:1.5;}
+  .info-bar b{color:var(--text);}
+
+  .export-row{display:flex;gap:8px;margin-bottom:10px;}
+  .export-row .btn{flex:1;}
+
+  .table-scroll{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+  table.reg{width:100%;border-collapse:collapse;background:var(--surface);min-width:1080px;}
+  table.reg th{font-family:'Oswald',sans-serif;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim);background:var(--surface2);padding:8px 5px;border:1px solid var(--border-soft);text-align:center;white-space:nowrap;}
+  table.reg td{border:1px solid var(--border-soft);padding:7px 5px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  td.meta{font-family:'Inter',sans-serif;background:var(--surface2);}
+  td.linea-cell{font-family:'Inter',sans-serif;background:var(--surface2);color:var(--accent2);font-weight:600;font-size:11px;max-width:110px;}
+  td.codigo-cell{font-family:'Oswald',sans-serif;font-weight:700;font-size:14px;color:var(--accent);letter-spacing:.02em;}
+  td.nominal-cell{color:var(--accent2);font-weight:600;}
+  td.limite-cell{color:var(--accent);font-weight:600;}
+  td.min-cell{font-weight:700;}
+  td.obs-cell{font-family:'Inter',sans-serif;text-align:left;font-size:11px;color:var(--text-dim);max-width:150px;}
+  td.cond-cell{font-family:'Oswald',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.03em;}
+  .tabla-thumb{width:34px;height:34px;object-fit:cover;border-radius:5px;cursor:pointer;border:1px solid var(--border);}
+  td.cond-OPERATIVO{color:var(--accent2);}
+  td.cond-MODERADO{color:var(--accent);}
+  td.cond-CRÍTICO{color:var(--danger);}
+  tr.divider td{background:#e4e7eb;padding:3px;border:none;}
+  tr.actions-row td{background:var(--surface2);text-align:left;padding:6px 8px;}
+
+  .empty{text-align:center;color:var(--text-dim);padding:40px 16px;font-size:14px;}
+  .empty .big{font-family:'Oswald',sans-serif;font-size:15px;color:var(--text);margin-bottom:4px;}
+
+  .setup-screen{
+    position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(44,128,120,0.10), transparent 55%),
+      radial-gradient(circle at 75% 80%, rgba(198,127,22,0.09), transparent 55%),
+      var(--bg);
+    padding:16px;
+  }
+  .setup-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(20,25,30,.08);}
+  .setup-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+  .setup-logo{width:44px;height:44px;border-radius:11px;}
+  .setup-title{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;color:var(--text);}
+  .setup-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);letter-spacing:.08em;text-transform:uppercase;font-weight:600;}
+  .setup-fields{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+
+  .search-bar{margin-bottom:12px;}
+  .search-bar input{font-family:'Inter',sans-serif;}
+  .install-hint{font-size:11px;color:var(--text-dim);text-align:center;margin:10px 0 0;line-height:1.5;}
+  ::placeholder{color:#556270;}
+
+  @media (max-width:480px){
+    h1{font-size:16.5px;}
+    .lecturas-grid input{font-size:13px;padding:9px 2px;}
+  }
+</style>
+</head>
+<body>
+<div class="watermark" aria-hidden="true"></div>
+
+<div class="setup-screen" id="setupScreen">
+  <div class="setup-card">
+    <div class="setup-header">
+      <img src="icon-192.png" alt="SETE" class="setup-logo">
+      <div>
+        <div class="setup-title">SETE Campo</div>
+        <div class="setup-sub">Nuevo Reporte</div>
+      </div>
+    </div>
+    <div class="setup-fields">
+      <div class="field">
+        <label for="tecnicoActual">Técnico</label>
+        <input type="text" id="tecnicoActual" placeholder="Nombre del técnico">
+      </div>
+      <div class="field">
+        <label for="ayudanteActual">Ayudante</label>
+        <input type="text" id="ayudanteActual" placeholder="Nombre del ayudante">
+      </div>
+      <div class="row">
+        <div class="field small">
+          <label for="temperaturaActual">Temperatura</label>
+          <input type="text" id="temperaturaActual" placeholder="Ej: 158°F" inputmode="decimal">
+        </div>
+        <div class="field small">
+          <label for="presionActual">Presión</label>
+          <input type="text" id="presionActual" placeholder="Ej: 150 PSI" inputmode="decimal">
+        </div>
+      </div>
+      <div class="field">
+        <label for="materialActual">Material</label>
+        <input type="text" id="materialActual" placeholder="Ej: ASTM A106 GR. B">
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btnComenzarReporte">Comenzar ↵</button>
+  </div>
+</div>
+
+<div class="wrap" id="mainWrap" style="display:none;">
+
+  <header class="top">
+    <div class="brand">
+      <svg class="app-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="20" fill="#12161a"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="#e8a33d" stroke-width="7"/>
+        <path d="M22 52c8-14 16 14 24 0s16-14 24 0s8 14 8 14" fill="none" stroke="#3f9d94" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="brand-text">
+        <h1>SETE Campo</h1>
+        <div class="sub">Registro de Inspección</div>
+      </div>
+    </div>
+    <div class="counter">Elementos<br><b id="countDisplay">0</b></div>
+    <button class="btn btn-ghost btn-small" id="btnEditarReporte" title="Editar datos del reporte">✏️ Reporte</button>
+  </header>
+
+  <div class="linea-bar">
+    <span class="lbl">LÍNEA / TRAMO</span>
+    <input type="text" id="lineaActual" placeholder='Ej: LÍNEA DE INGRESO DE AGUA...' autocomplete="off" list="lineasDatalist">
+    <datalist id="lineasDatalist"></datalist>
+  </div>
+
+  <nav class="tabs">
+    <button class="active" data-tab="ingreso">+ Nuevo Elemento</button>
+    <button data-tab="tabla">Tabla / Registro</button>
+  </nav>
+
+  <!-- ===== PANEL INGRESO ===== -->
+  <div class="panel active" id="panel-ingreso">
+    <div class="card">
+      <h2>Datos del elemento</h2>
+      <div class="row">
+        <div class="field small">
+          <label for="codigo">Código</label>
+          <input type="text" id="codigo" placeholder="1P" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="tipo">Tipo</label>
+          <select id="tipo">
+            <option value="TUBO">TUBO</option>
+            <option value="CODO">CODO</option>
+            <option value="NIPLE">NIPLE</option>
+            <option value="REDUCCIÓN">REDUCCIÓN</option>
+            <option value="TEE">TEE</option>
+            <option value="BRIDA">BRIDA</option>
+            <option value="OTRO">OTRO...</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" id="otroTipoRow" style="display:none;">
+        <div class="field"><label for="tipoOtro">Especificar tipo</label><input type="text" id="tipoOtro" placeholder="Ej: SOPORTE"></div>
+      </div>
+      <div class="row">
+        <div class="field small"><label for="diametro">NPS / Ø (pulg)</label><input type="text" id="diametro" placeholder="6" autocomplete="off"></div>
+        <div class="field small"><label for="longitud">Longitud (m)</label><input type="text" id="longitud" placeholder="1.60" inputmode="decimal"></div>
+      </div>
+      <div class="nps-hint" id="npsHint">Nominal y Límite se recuerdan solos por NPS.</div>
+      <div class="row" id="nominalLimiteSimpleRow">
+        <div class="field small"><label for="nominalSimple">Nominal (in)</label><input type="text" id="nominalSimple" class="nominal-simple-input" inputmode="decimal" placeholder="0.280"></div>
+        <div class="field small"><label for="limiteSimple">Límite de retiro (in)</label><input type="text" id="limiteSimple" class="limite-simple-input" inputmode="decimal" placeholder="0.130"></div>
+      </div>
+      <div class="gps-row" id="gpsRow">
+        <span id="gpsStatus">📍 Buscando ubicación…</span>
+        <button type="button" class="btn btn-ghost btn-small" id="btnGpsReintentar">Reintentar</button>
+      </div>
+      <div class="foto-row" id="fotoRow">
+        <div class="foto-preview-wrap" id="fotoPreviewWrap" style="display:none;">
+          <img id="fotoPreview" alt="Foto del elemento">
+          <button type="button" class="btn btn-danger btn-small" id="btnQuitarFoto">✕ Quitar foto</button>
+        </div>
+        <label class="btn btn-ghost foto-btn" id="fotoBtnLabel">
+          📷 Foto (opcional)
+          <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none;">
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Lecturas de espesor (in)</h2>
+      <div class="filas-info-row">
+        <span id="filasInfo">1 fila de lectura</span>
+        <div class="filas-btns">
+          <button type="button" class="btn btn-ghost btn-small" id="btnMenosFila">− Fila</button>
+          <button type="button" class="btn btn-ghost btn-small" id="btnMasFila">+ Fila</button>
+        </div>
+      </div>
+      <div class="lect-head">
+        <span></span><span id="lectHeadNomLim">Nom./Lím.</span>
+        <div class="sub-labels"><span>A</span><span>B</span><span>C</span><span>D</span></div>
+      </div>
+      <div id="lectRowsContainer"></div>
+
+      <label class="toggle-row"><input type="checkbox" id="filasManual"> Fijar filas manualmente</label>
+      <label class="toggle-row"><input type="checkbox" id="mantenerTipo"> Mantener tipo / diámetro / longitud</label>
+    </div>
+
+    <div class="card">
+      <h2>Observaciones <span style="text-transform:none;font-weight:400;color:var(--text-dim);">(va en la fila F1, sin combinar)</span></h2>
+      <textarea id="observaciones" placeholder="Ej: línea se entierra, llega a válvula de bola, cruce vía..."></textarea>
+    </div>
+
+    <button class="btn btn-primary" id="btnAgregar">Agregar elemento ↵</button>
+    <div class="install-hint">Tip: usa "Agregar a pantalla de inicio" para abrir esto como app.</div>
+  </div>
+
+  <!-- ===== PANEL TABLA ===== -->
+  <div class="panel" id="panel-tabla">
+    <div class="info-bar">Las celdas de lectura se resaltan solas en rojo según qué tan cerca están del <b>límite de retiro</b> de cada elemento (más rojo = más cerca del límite; sin color = está en o sobre el nominal).</div>
+    <div class="search-bar"><input type="text" id="buscar" placeholder="Buscar código o línea... (ej: 1P, PW 2)" style="width:100%;"></div>
+    <div class="export-row">
+      <button class="btn btn-accent2" id="btnCompartir">📤 Compartir Excel</button>
+      <button class="btn btn-ghost" id="btnExportXLSX">Descargar .xlsx</button>
+    </div>
+    <div class="export-row">
+      <button class="btn btn-ghost" id="btnExportKML">🗺️ Exportar mapa (KML)</button>
+      <button class="btn btn-ghost" id="btnExportFotos">📷 Descargar fotos (ZIP)</button>
+    </div>
+    <div class="export-row">
+      <button class="btn btn-ghost" id="btnExportCSV">CSV (;)</button>
+      <button class="btn btn-ghost" id="btnLimpiar">Borrar todo</button>
+    </div>
+    <div class="export-row">
+      <label class="btn btn-ghost" id="btnImportarExcel" style="cursor:pointer;">
+        📂 Importar Excel
+        <input type="file" id="importarExcelInput" accept=".xlsx" style="display:none;">
+      </label>
+    </div>
+    <div id="tablaWrap"></div>
+  </div>
+
+</div>
+
+<script>
+// Red de seguridad: si algo falla sin que lo hayamos previsto, que quede registrado
+// en la consola en vez de fallar en silencio y dejar la app en un estado raro.
+window.addEventListener('error', (e)=> console.error('Error no capturado:', e.error || e.message));
+window.addEventListener('unhandledrejection', (e)=> console.error('Promesa rechazada sin capturar:', e.reason));
+
+const STORAGE_KEY = 'puntos_inspeccion_v3';
+const LINEA_KEY = 'linea_actual_v1';
+const TECNICO_KEY = 'tecnico_actual_v1';
+const AYUDANTE_KEY = 'ayudante_actual_v1';
+const TEMPERATURA_KEY = 'temperatura_actual_v1';
+const PRESION_KEY = 'presion_actual_v1';
+const MATERIAL_KEY = 'material_actual_v1';
+const REF_KEY = 'memoria_diametros_v1';
+let memoriaDiametros = {};
+let puntos = [];
+let editId = null;
+
+// Almacenamiento real del navegador (IndexedDB) — funciona sin internet y sin depender de Claude.ai,
+// necesario porque esta app se ejecuta como página independiente instalada, no como artifact.
+const DB_NAME = 'sete_campo_db', DB_STORE = 'kv';
+function idbOpen(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = ()=>{ req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+const storage = {
+  async get(key){
+    try{
+      const db = await idbOpen();
+      const value = await new Promise((resolve, reject)=>{
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const req = tx.objectStore(DB_STORE).get(key);
+        req.onsuccess = ()=> resolve(req.result);
+        req.onerror = ()=> reject(req.error);
+      });
+      return value === undefined ? null : { value };
+    }catch(e){ return null; }
+  },
+  async set(key, value){
+    const db = await idbOpen();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put(value, key);
+      tx.oncomplete = ()=> resolve({ value });
+      tx.onerror = ()=> reject(tx.error);
+    });
+  },
+  async delete(key){
+    const db = await idbOpen();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).delete(key);
+      tx.oncomplete = ()=> resolve(true);
+      tx.onerror = ()=> reject(tx.error);
+    });
+  }
+};
+
+const $ = s => document.querySelector(s);
+
+// Interpreta ".123", "0.123" y "0,123"/",123" (teclados que meten coma) como el mismo número.
+// Devuelve null si está vacío, NaN si hay texto inválido (para no romper mientras se sigue escribiendo).
+function parseNum(v){
+  if(v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if(s === '') return null;
+  return parseFloat(s.replace(',', '.'));
+}
+const tipoSel = $('#tipo'), otroRow = $('#otroTipoRow'), tipoOtro = $('#tipoOtro');
+
+const DOBLE_DIAMETRO = ['TEE','REDUCCIÓN'];
+const BASE_FILAS = { TUBO:1, CODO:2, NIPLE:1, 'REDUCCIÓN':2, TEE:3, BRIDA:1, OTRO:1 };
+
+// Regla de campo: cada tipo tiene una cantidad "normal" (base) de filas.
+// Por cada 0.50m completo se suma 1 fila de crecimiento; si el sobrante llega a 0.30m o más, se redondea sumando 1 fila extra.
+function calcFilas(tipo, longitud){
+  const base = BASE_FILAS[tipo] !== undefined ? BASE_FILAS[tipo] : 1;
+  const L = parseNum(longitud) || NaN;
+  if(isNaN(L) || L<=0) return base;
+  const tramosCompletos = Math.floor(L/0.5 + 1e-9);
+  const remainder = L - tramosCompletos*0.5;
+  const extraFila = remainder >= 0.30 - 1e-9 ? 1 : 0;
+  const crecimiento = tramosCompletos + extraFila;
+  const calculado = (base - 1) + crecimiento;
+  return Math.max(base, calculado);
+}
+
+function buildLectRows(n, preserve){
+  n = Math.max(1, n);
+  const cont = $('#lectRowsContainer');
+  const prevData = preserve ? getLecturas() : null;
+  cont.innerHTML = '';
+  for(let i=0;i<n;i++){
+    const row = document.createElement('div');
+    row.className = 'lect-row';
+    row.dataset.fila = i;
+    row.innerHTML = `<div class="fila-label">F${i+1}</div>
+      <div class="nomlim-col">
+        <input type="text" class="nominal-input" inputmode="decimal" placeholder="Nom.">
+        <input type="text" class="limite-input" inputmode="decimal" placeholder="Lím.">
+      </div>
+      <div class="lecturas-grid">
+        <input type="text" inputmode="decimal" placeholder="0.000">
+        <input type="text" inputmode="decimal" placeholder="0.000">
+        <input type="text" inputmode="decimal" placeholder="0.000">
+        <input type="text" inputmode="decimal" placeholder="0.000">
+      </div>`;
+    cont.appendChild(row);
+  }
+  if(preserve && prevData) setLecturas(prevData);
+  const count = document.querySelectorAll('.lect-row').length;
+  $('#filasInfo').textContent = `${count} fila${count===1?'':'s'} de lectura`;
+}
+
+function autoRecalcFilas(){
+  if($('#filasManual').checked) return;
+  const tipoVal = tipoSel.value === 'OTRO' ? 'OTRO' : tipoSel.value;
+  buildLectRows(calcFilas(tipoVal, $('#longitud').value), true);
+  aplicarMemoriaDiametro();
+}
+
+$('#btnMasFila').addEventListener('click', ()=> buildLectRows(document.querySelectorAll('.lect-row').length + 1, true));
+$('#btnMenosFila').addEventListener('click', ()=>{
+  const n = document.querySelectorAll('.lect-row').length;
+  if(n > 1) buildLectRows(n - 1, true);
+});
+
+function checkExcedeNominal(){
+  const problemas = [];
+  document.querySelectorAll('.lect-row').forEach((row, fi)=>{
+    const nomVal = row.querySelector('.nominal-input').value;
+    const nominal = parseNum(nomVal);
+    row.querySelectorAll('.lecturas-grid input').forEach((inp, ci)=>{
+      const v = parseNum(inp.value);
+      const excede = (nominal !== null && v !== null && v > nominal);
+      inp.classList.toggle('input-warning', excede);
+      if(excede) problemas.push({ fila: fi+1, letra: ['A','B','C','D'][ci], valor: v, nominal });
+    });
+  });
+  return problemas;
+}
+$('#lectRowsContainer').addEventListener('input', (e)=>{
+  if(e.target.matches('.lecturas-grid input') || e.target.matches('.nominal-input')) checkExcedeNominal();
+});
+
+function applyTipoUI(){
+  otroRow.style.display = tipoSel.value === 'OTRO' ? 'flex' : 'none';
+  $('#diametro').placeholder = DOBLE_DIAMETRO.includes(tipoSel.value) ? '6x8' : '6';
+  autoRecalcFilas();
+  aplicarMemoriaDiametro();
+}
+
+const PREFIJO_TIPO = { P:'TUBO', E:'CODO', T:'TEE', N:'NIPLE', R:'REDUCCIÓN', B:'BRIDA' };
+function detectarTipoDesdeCodigo(codigo){
+  const m = codigo.trim().toUpperCase().match(/^\d*([A-ZÑ])/);
+  if(!m) return null;
+  return PREFIJO_TIPO[m[1]] || null;
+}
+
+let tipoAutoLocked = false;
+tipoSel.addEventListener('change', () => { tipoAutoLocked = true; applyTipoUI(); });
+$('#longitud').addEventListener('input', autoRecalcFilas);
+$('#longitud').addEventListener('change', autoRecalcFilas);
+
+$('#codigo').addEventListener('input', ()=>{
+  if(tipoAutoLocked) return;
+  const detectado = detectarTipoDesdeCodigo($('#codigo').value);
+  if(detectado && tipoSel.value !== detectado){
+    tipoSel.value = detectado;
+    applyTipoUI();
+  }
+});
+
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    $('#panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='tabla') renderTabla();
+  });
+});
+
+// Cada elemento vive en SU PROPIO registro (punto_<id>) en vez de un solo bloque gigante con todos
+// juntos — así agregar el elemento #20 solo escribe el #20, sin tener que re-guardar los 19 anteriores
+// (incluidas sus fotos) cada vez. Un índice liviano (solo la lista de ids, sin fotos) mantiene el orden.
+const PUNTOS_INDEX_KEY = 'puntos_index_v1';
+function claveElemento(id){ return 'punto_' + id; }
+
+function migrarElemento(p){
+  if(Array.isArray(p.lecturas)){
+    p.lecturas = p.lecturas.map(f => Array.isArray(f) ? {nominal:null, limite:null, valores:f} : f);
+  }
+  // Migración: versiones viejas tenían un único "límite de retiro" por elemento en vez de por fila.
+  if(p.limiteRetiro !== undefined && p.limiteRetiro !== ''){
+    const limiteViejo = parseNum(p.limiteRetiro);
+    (p.lecturas||[]).forEach(f=>{ if(f.limite === undefined || f.limite === null) f.limite = limiteViejo; });
+  }
+  (p.lecturas||[]).forEach(f=>{ if(f.limite === undefined) f.limite = null; });
+  if(p.linea === undefined) p.linea = '';
+  if(p.observaciones === undefined) p.observaciones = '';
+  if(p.tecnico === undefined) p.tecnico = '';
+  if(p.ayudante === undefined) p.ayudante = '';
+  if(p.gps === undefined) p.gps = null;
+  if(p.foto === undefined) p.foto = null;
+  return p;
+}
+
+async function loadPuntos(){
+  try{
+    const idx = await storage.get(PUNTOS_INDEX_KEY);
+    if(idx){
+      // Esquema nuevo: leer cada elemento por su propio registro. Si UNO sale corrupto,
+      // se salta solo ese (con aviso) — nunca se pierden los demás por culpa de uno solo.
+      let ids = [];
+      try{ ids = JSON.parse(idx.value); }catch(e){ ids = []; }
+      const resultados = await Promise.all(ids.map(id => storage.get(claveElemento(id))));
+      const buenos = [];
+      resultados.forEach((r, i)=>{
+        if(!r) return;
+        try{ buenos.push(migrarElemento(JSON.parse(r.value))); }
+        catch(e){ console.error('Elemento dañado, se omitió:', ids[i], e); }
+      });
+      puntos = buenos;
+    } else {
+      // Esquema viejo: un solo bloque con todos los elementos — se migra una sola vez al nuevo esquema.
+      const res = await storage.get(STORAGE_KEY);
+      let viejos = [];
+      try{ viejos = res ? JSON.parse(res.value) : []; }catch(e){ viejos = []; }
+      puntos = viejos.map(p=>{ try{ return migrarElemento(p); }catch(e){ return null; } }).filter(Boolean);
+      if(puntos.length){
+        await Promise.all(puntos.map(p => storage.set(claveElemento(p.id), JSON.stringify(p))));
+        await storage.set(PUNTOS_INDEX_KEY, JSON.stringify(puntos.map(p=>p.id)));
+      }
+    }
+  }catch(e){ console.error('Error cargando elementos:', e); if(!Array.isArray(puntos)) puntos = []; }
+  updateCount();
+}
+
+// Guarda SOLO un elemento (nuevo o editado) — nunca reescribe los demás.
+async function guardarUnElemento(p){
+  try{ await storage.set(claveElemento(p.id), JSON.stringify(p)); }catch(e){ console.error('No se pudo guardar el elemento', e); }
+  try{
+    const idx = await storage.get(PUNTOS_INDEX_KEY);
+    const ids = idx ? JSON.parse(idx.value) : [];
+    if(!ids.includes(p.id)){ ids.push(p.id); await storage.set(PUNTOS_INDEX_KEY, JSON.stringify(ids)); }
+  }catch(e){ console.error('No se pudo actualizar el índice', e); }
+}
+
+// Borra SOLO un elemento — nunca reescribe los demás.
+async function borrarUnElemento(id){
+  try{ await storage.delete(claveElemento(id)); }catch(e){}
+  try{
+    const idx = await storage.get(PUNTOS_INDEX_KEY);
+    const ids = idx ? JSON.parse(idx.value).filter(x=>x!==id) : [];
+    await storage.set(PUNTOS_INDEX_KEY, JSON.stringify(ids));
+  }catch(e){ console.error('No se pudo actualizar el índice', e); }
+}
+
+// Borra TODOS los elementos de golpe (usado en "Borrar todo" y tras exportar).
+async function borrarTodosLosElementos(){
+  try{
+    const idx = await storage.get(PUNTOS_INDEX_KEY);
+    const ids = idx ? JSON.parse(idx.value) : [];
+    await Promise.all(ids.map(id => storage.delete(claveElemento(id))));
+    await storage.set(PUNTOS_INDEX_KEY, JSON.stringify([]));
+  }catch(e){ console.error('No se pudo borrar todo', e); }
+}
+
+async function loadLinea(){ try{ const res = await storage.get(LINEA_KEY); if(res) $('#lineaActual').value = res.value; }catch(e){} }
+async function saveLinea(){ try{ await storage.set(LINEA_KEY, $('#lineaActual').value.trim()); }catch(e){} }
+
+// Sugiere las líneas ya usadas antes, para evitar variaciones de tipeo (mayúsculas, espacios, etc.)
+// que harían que la misma línea quede registrada como si fueran distintas.
+function poblarDatalistLineas(){
+  const lineas = [...new Set(puntos.map(p => (p.linea||'').trim()).filter(Boolean))];
+  $('#lineasDatalist').innerHTML = lineas.map(l => `<option value="${esc(l)}">`).join('');
+}
+$('#lineaActual').addEventListener('change', saveLinea);
+$('#lineaActual').addEventListener('blur', saveLinea);
+
+async function loadCrew(){
+  try{ const res = await storage.get(TECNICO_KEY); if(res) $('#tecnicoActual').value = res.value; }catch(e){}
+  try{ const res = await storage.get(AYUDANTE_KEY); if(res) $('#ayudanteActual').value = res.value; }catch(e){}
+  try{ const res = await storage.get(TEMPERATURA_KEY); if(res) $('#temperaturaActual').value = res.value; }catch(e){}
+  try{ const res = await storage.get(PRESION_KEY); if(res) $('#presionActual').value = res.value; }catch(e){}
+  try{ const res = await storage.get(MATERIAL_KEY); if(res) $('#materialActual').value = res.value; }catch(e){}
+}
+async function saveTecnico(){ try{ await storage.set(TECNICO_KEY, $('#tecnicoActual').value.trim()); }catch(e){} }
+async function saveAyudante(){ try{ await storage.set(AYUDANTE_KEY, $('#ayudanteActual').value.trim()); }catch(e){} }
+async function saveTemperatura(){ try{ await storage.set(TEMPERATURA_KEY, $('#temperaturaActual').value.trim()); }catch(e){} }
+async function savePresion(){ try{ await storage.set(PRESION_KEY, $('#presionActual').value.trim()); }catch(e){} }
+async function saveMaterial(){ try{ await storage.set(MATERIAL_KEY, $('#materialActual').value.trim()); }catch(e){} }
+$('#tecnicoActual').addEventListener('change', saveTecnico);
+$('#tecnicoActual').addEventListener('blur', saveTecnico);
+$('#ayudanteActual').addEventListener('change', saveAyudante);
+$('#ayudanteActual').addEventListener('blur', saveAyudante);
+$('#temperaturaActual').addEventListener('change', saveTemperatura);
+$('#temperaturaActual').addEventListener('blur', saveTemperatura);
+$('#presionActual').addEventListener('change', savePresion);
+$('#presionActual').addEventListener('blur', savePresion);
+$('#materialActual').addEventListener('change', saveMaterial);
+$('#materialActual').addEventListener('blur', saveMaterial);
+
+async function guardarTodosDatosReporte(){
+  await Promise.all([saveTecnico(), saveAyudante(), saveTemperatura(), savePresion(), saveMaterial()]);
+}
+
+function mostrarPantallaConfiguracion(){
+  $('#mainWrap').style.display = 'none';
+  $('#setupScreen').style.display = 'flex';
+}
+function mostrarAppPrincipal(){
+  $('#setupScreen').style.display = 'none';
+  $('#mainWrap').style.display = 'block';
+  poblarDatalistLineas();
+  $('#codigo').focus();
+}
+$('#btnComenzarReporte').addEventListener('click', async ()=>{
+  await guardarTodosDatosReporte();
+  await Promise.race([cargaDatos, tiempoMaximoEspera]); // nunca se queda pegado esperando, aunque el guardado falle
+  mostrarAppPrincipal();
+});
+$('#btnEditarReporte').addEventListener('click', mostrarPantallaConfiguracion);
+
+async function loadMemoriaDiametros(){
+  try{ const res = await storage.get(REF_KEY); memoriaDiametros = res ? JSON.parse(res.value) : {}; }
+  catch(e){ memoriaDiametros = {}; }
+}
+async function saveMemoriaDiametros(){ try{ await storage.set(REF_KEY, JSON.stringify(memoriaDiametros)); }catch(e){} }
+
+// Diámetro simple (6, 8, 4...) => se recuerda solo. Diámetro doble (2x3, 4x8) => se llena a mano siempre, no se guarda memoria.
+function esDiametroDoble(diametro){ return /[x×]/i.test((diametro||'').trim()); }
+
+// Modo SIMPLE (ej. "6"): un solo Nominal/Límite para todo el elemento, se copia a todas las filas por dentro.
+// Modo DOBLE (ej. "2x3"): cada fila lleva su propio Nominal/Límite, porque puede variar según el lado medido.
+function sincronizarModoNominal(){
+  const doble = esDiametroDoble($('#diametro').value);
+  $('#lectRowsContainer').classList.toggle('modo-simple', !doble);
+  $('#nominalLimiteSimpleRow').style.display = doble ? 'none' : 'flex';
+  $('#lectHeadNomLim').style.visibility = doble ? 'visible' : 'hidden';
+  if(!doble){
+    const nomVal = $('#nominalSimple').value;
+    const limVal = $('#limiteSimple').value;
+    document.querySelectorAll('.nominal-input').forEach(inp => { inp.value = nomVal; });
+    document.querySelectorAll('.limite-input').forEach(inp => { inp.value = limVal; });
+  }
+}
+$('#nominalSimple').addEventListener('input', ()=>{ sincronizarModoNominal(); checkExcedeNominal(); });
+$('#limiteSimple').addEventListener('input', sincronizarModoNominal);
+
+function claveMemoria(tipo, diametro){ return (tipo||'').trim().toUpperCase() + '|' + (diametro||'').trim(); }
+
+function aplicarMemoriaDiametro(){
+  const d = $('#diametro').value.trim();
+  const t = tipoSel.value === 'OTRO' ? (tipoOtro.value.trim().toUpperCase() || 'OTRO') : tipoSel.value;
+  const hint = $('#npsHint');
+  sincronizarModoNominal();
+  if(!d || esDiametroDoble(d)){ hint.classList.remove('filled'); hint.textContent = 'Nominal y Límite se recuerdan solos por NPS + Tipo (diámetro simple) — llénalos una vez y quedan guardados para la próxima. En medidas dobles (2x3, 3x4...) se llenan a mano por fila.'; return; }
+  const m = memoriaDiametros[claveMemoria(t, d)];
+  if(!m){ hint.classList.remove('filled'); hint.textContent = `Aún no hay Nominal/Límite guardado para ${t} de ${d}" — llénalos ahora y se recuerdan solos la próxima vez.`; return; }
+  $('#nominalSimple').value = m.nominal;
+  $('#limiteSimple').value = (m.limite!==null && m.limite!==undefined) ? m.limite : '';
+  sincronizarModoNominal();
+  hint.classList.add('filled');
+  hint.textContent = `Autocompletado desde ${t} de ${d}" guardado (Nominal ${Number(m.nominal).toFixed(3)}, Límite ${m.limite!==null?Number(m.limite).toFixed(3):'—'}).`;
+}
+$('#diametro').addEventListener('change', aplicarMemoriaDiametro);
+$('#diametro').addEventListener('blur', aplicarMemoriaDiametro);
+$('#diametro').addEventListener('input', sincronizarModoNominal);
+$('#tipoOtro').addEventListener('blur', aplicarMemoriaDiametro);
+
+// Al guardar un elemento con NPS simple, si Nominal/Límite están llenos, se guardan como memoria
+// para esa combinación de Tipo + NPS (un NIPLE de 4" y un CODO de 4" casi siempre llevan un
+// espesor nominal distinto, así que se recuerdan por separado — cambiar de uno a otro no los pisa).
+// En diámetros dobles (2x3, 4x8...) no se guarda memoria — cada fila se llena a mano porque puede variar por lado.
+function recordarMemoriaDiametro(diametro, lecturas){
+  const d = (diametro||'').trim();
+  if(!d || esDiametroDoble(d)) return;
+  const t = tipoSel.value === 'OTRO' ? (tipoOtro.value.trim().toUpperCase() || 'OTRO') : tipoSel.value;
+  const clave = claveMemoria(t, d);
+  const nominalNum = parseNum($('#nominalSimple').value);
+  if(nominalNum === null || isNaN(nominalNum)) return;
+  const limiteNum = parseNum($('#limiteSimple').value);
+  const limite = (limiteNum !== null && !isNaN(limiteNum)) ? limiteNum : (memoriaDiametros[clave] ? memoriaDiametros[clave].limite : null);
+  memoriaDiametros[clave] = { nominal: nominalNum, limite };
+  saveMemoriaDiametros();
+}
+
+
+function updateCount(){ $('#countDisplay').textContent = puntos.length; }
+
+function getLecturas(){
+  const filas = [];
+  document.querySelectorAll('.lect-row').forEach(row=>{
+    const nominal = parseNum(row.querySelector('.nominal-input').value);
+    const limite = parseNum(row.querySelector('.limite-input').value);
+    const valores = Array.from(row.querySelectorAll('.lecturas-grid input')).map(i => parseNum(i.value));
+    filas.push({nominal, limite, valores});
+  });
+  return filas;
+}
+function setLecturas(filas){
+  document.querySelectorAll('.lect-row').forEach((row, fi)=>{
+    const f = (filas && filas[fi]) ? filas[fi] : {nominal:null, limite:null, valores:[]};
+    row.querySelector('.nominal-input').value = (f.nominal===null||f.nominal===undefined) ? '' : f.nominal;
+    row.querySelector('.limite-input').value = (f.limite===null||f.limite===undefined) ? '' : f.limite;
+    row.querySelectorAll('.lecturas-grid input').forEach((inp,ci)=>{
+      const v = f.valores ? f.valores[ci] : null;
+      inp.value = (v===null||v===undefined) ? '' : v;
+    });
+  });
+}
+function clearLecturas(){ document.querySelectorAll('.lect-row input').forEach(i=>i.value=''); }
+
+let posicionActual = null; // {lat, lon, acc}
+let fotoActual = null; // dataURL comprimido
+let fotoEliminadaManualmente = false;
+
+function actualizarEstadoGps(estado, texto){
+  const row = $('#gpsRow'), status = $('#gpsStatus');
+  row.classList.remove('ok','error');
+  if(estado) row.classList.add(estado);
+  status.textContent = texto;
+}
+
+function pedirUbicacion(){
+  posicionActual = null;
+  if(!('geolocation' in navigator)){ actualizarEstadoGps('error', '📍 GPS no disponible en este navegador'); return; }
+  actualizarEstadoGps(null, '📍 Buscando ubicación…');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      posicionActual = { lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy };
+      actualizarEstadoGps('ok', `📍 ${posicionActual.lat.toFixed(5)}, ${posicionActual.lon.toFixed(5)} (±${Math.round(posicionActual.acc)}m)`);
+    },
+    err => { actualizarEstadoGps('error', '📍 Sin permiso o sin señal — reintenta o guarda igual sin ubicación'); },
+    { enableHighAccuracy:true, timeout:15000, maximumAge:20000 }
+  );
+}
+$('#btnGpsReintentar').addEventListener('click', pedirUbicacion);
+
+function mostrarPreviewFoto(dataUrl){
+  if(!dataUrl){ $('#fotoPreviewWrap').style.display='none'; $('#fotoBtnLabel').style.display='flex'; return; }
+  $('#fotoPreview').src = dataUrl;
+  $('#fotoPreviewWrap').style.display='flex';
+  $('#fotoBtnLabel').style.display='none';
+}
+
+$('#fotoInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  fotoEliminadaManualmente = false;
+  const reader = new FileReader();
+  reader.onerror = ()=>{ alert('⚠ No se pudo leer la foto. Intenta tomarla de nuevo.'); e.target.value=''; };
+  reader.onload = (ev)=>{
+    const img = new Image();
+    img.onerror = ()=>{ alert('⚠ La foto no se pudo procesar (puede estar dañada). Intenta con otra.'); e.target.value=''; };
+    img.onload = ()=>{
+      try{
+        const maxW = 720;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        fotoActual = canvas.toDataURL('image/jpeg', 0.55);
+        mostrarPreviewFoto(fotoActual);
+      }catch(err){
+        console.error('Error procesando la foto:', err);
+        alert('⚠ No se pudo procesar la foto. Puedes seguir sin ella y agregarla después editando el elemento.');
+        e.target.value='';
+      }
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+$('#btnQuitarFoto').addEventListener('click', ()=>{ fotoActual = null; fotoEliminadaManualmente = true; $('#fotoInput').value=''; mostrarPreviewFoto(null); });
+
+function resetForm(keepMeta){
+  $('#codigo').value=''; $('#observaciones').value='';
+  fotoActual = null; fotoEliminadaManualmente = false; $('#fotoInput').value=''; mostrarPreviewFoto(null);
+  pedirUbicacion();
+  if(!keepMeta){
+    tipoAutoLocked = false;
+    tipoSel.value='TUBO'; otroRow.style.display='none'; tipoOtro.value=''; $('#diametro').placeholder='6'; $('#diametro').value=''; $('#longitud').value='';
+    $('#nominalSimple').value=''; $('#limiteSimple').value='';
+  }
+  if(!$('#filasManual').checked){
+    const tipoVal = tipoSel.value === 'OTRO' ? 'OTRO' : tipoSel.value;
+    buildLectRows(calcFilas(tipoVal, $('#longitud').value), false);
+  } else {
+    clearLecturas();
+  }
+  sincronizarModoNominal();
+  $('#codigo').focus();
+  editId = null;
+  $('#btnAgregar').textContent = 'Agregar elemento ↵';
+}
+
+$('#btnAgregar').addEventListener('click', async ()=>{
+  if($('#btnAgregar').disabled) return; // evita doble-toque mientras se está guardando
+  const codigo = $('#codigo').value.trim().toUpperCase();
+  if(!codigo){ $('#codigo').focus(); return; }
+
+  const problemas = checkExcedeNominal();
+  if(problemas.length){
+    const detalle = problemas.map(p=>`F${p.fila}-${p.letra}: ${p.valor} in supera el nominal ${p.nominal} in`).join('\n');
+    const seguir = confirm(`⚠ Hay lecturas que superan el espesor nominal:\n\n${detalle}\n\n¿Guardar el elemento de todas formas?`);
+    if(!seguir) return;
+  }
+
+  const btn = $('#btnAgregar');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  try{
+    const tipo = tipoSel.value === 'OTRO' ? (tipoOtro.value.trim().toUpperCase() || 'OTRO') : tipoSel.value;
+    const diametro = $('#diametro').value;
+    const longitud = $('#longitud').value;
+    const linea = $('#lineaActual').value.trim();
+    const tecnico = $('#tecnicoActual').value.trim();
+    const ayudante = $('#ayudanteActual').value.trim();
+    const temperatura = $('#temperaturaActual').value.trim();
+    const presion = $('#presionActual').value.trim();
+    const material = $('#materialActual').value.trim();
+    const observaciones = $('#observaciones').value.trim();
+    const lecturas = getLecturas();
+    const gps = posicionActual ? { lat: posicionActual.lat, lon: posicionActual.lon, acc: posicionActual.acc } : (editId ? (puntos.find(p=>p.id===editId)||{}).gps : null);
+    const foto = fotoEliminadaManualmente ? null : (fotoActual !== null ? fotoActual : (editId ? (puntos.find(p=>p.id===editId)||{}).foto : null));
+
+    let elementoGuardado;
+    if(editId){
+      const idx = puntos.findIndex(p=>p.id===editId);
+      if(idx>-1){ puntos[idx] = {...puntos[idx], codigo, tipo, diametro, longitud, linea, tecnico, ayudante, temperatura, presion, material, observaciones, lecturas, gps, foto}; elementoGuardado = puntos[idx]; }
+    } else {
+      elementoGuardado = { id: Date.now()+'-'+Math.random().toString(36).slice(2,7), codigo, tipo, diametro, longitud, linea, tecnico, ayudante, temperatura, presion, material, observaciones, lecturas, gps, foto };
+      puntos.push(elementoGuardado);
+    }
+    recordarMemoriaDiametro(diametro, lecturas);
+    await guardarUnElemento(elementoGuardado); await saveLinea(); await saveTecnico(); await saveAyudante(); updateCount(); poblarDatalistLineas();
+    const keep = $('#mantenerTipo').checked;
+    resetForm(keep);
+  }catch(e){
+    console.error('Error al guardar el elemento:', e);
+    alert('⚠ Hubo un problema guardando este elemento. Vuelve a intentar — si persiste, revisa el espacio de almacenamiento del celular.');
+  }finally{
+    btn.disabled = false;
+    if(btn.textContent === 'Guardando…') btn.textContent = textoOriginal;
+  }
+});
+
+$('#codigo').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.querySelector('.nominal-input').focus(); }});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && (e.target.matches('.lecturas-grid input') || e.target.matches('.nominal-input'))){
+    e.preventDefault();
+    const inputs = Array.from(document.querySelectorAll('.lect-row input'));
+    const idx = inputs.indexOf(e.target);
+    if(idx > -1 && idx < inputs.length-1) inputs[idx+1].focus();
+    else $('#observaciones').focus();
+  }
+});
+
+function editPunto(id){
+  const p = puntos.find(x=>x.id===id);
+  if(!p) return;
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(pn=>pn.classList.remove('active'));
+  document.querySelector('nav.tabs button[data-tab="ingreso"]').classList.add('active');
+  $('#panel-ingreso').classList.add('active');
+
+  $('#codigo').value = p.codigo;
+  tipoAutoLocked = true;
+  const knownTipos = ['TUBO','CODO','NIPLE','REDUCCIÓN','TEE','BRIDA'];
+  if(knownTipos.includes(p.tipo)){ tipoSel.value = p.tipo; otroRow.style.display='none'; }
+  else { tipoSel.value='OTRO'; otroRow.style.display='flex'; tipoOtro.value = p.tipo; }
+  $('#diametro').placeholder = DOBLE_DIAMETRO.includes(tipoSel.value) ? '6x8' : '6';
+  $('#diametro').value = p.diametro || '';
+  $('#longitud').value = p.longitud || '';
+  $('#observaciones').value = p.observaciones || '';
+  if(p.linea) $('#lineaActual').value = p.linea;
+  if(p.tecnico) $('#tecnicoActual').value = p.tecnico;
+  if(p.ayudante) $('#ayudanteActual').value = p.ayudante;
+  buildLectRows((p.lecturas && p.lecturas.length) ? p.lecturas.length : 1, false);
+  setLecturas(p.lecturas);
+  if(!esDiametroDoble(p.diametro) && p.lecturas && p.lecturas[0]){
+    $('#nominalSimple').value = (p.lecturas[0].nominal===null||p.lecturas[0].nominal===undefined) ? '' : p.lecturas[0].nominal;
+    $('#limiteSimple').value = (p.lecturas[0].limite===null||p.lecturas[0].limite===undefined) ? '' : p.lecturas[0].limite;
+  } else {
+    $('#nominalSimple').value=''; $('#limiteSimple').value='';
+  }
+  sincronizarModoNominal();
+  checkExcedeNominal();
+  posicionActual = null;
+  if(p.gps && p.gps.lat){ actualizarEstadoGps('ok', `📍 Guardado: ${p.gps.lat.toFixed(5)}, ${p.gps.lon.toFixed(5)} — toca Reintentar para actualizar`); }
+  else { actualizarEstadoGps(null, '📍 Este elemento no tiene ubicación guardada — toca Reintentar para capturarla'); }
+  fotoActual = null; fotoEliminadaManualmente = false; $('#fotoInput').value='';
+  mostrarPreviewFoto(p.foto || null);
+  editId = id;
+  $('#btnAgregar').textContent = 'Guardar cambios ✓';
+  $('#codigo').focus();
+}
+
+async function deletePunto(id){ puntos = puntos.filter(p=>p.id!==id); await borrarUnElemento(id); updateCount(); renderTabla(); }
+
+$('#buscar').addEventListener('input', renderTabla);
+
+// Resalta en rojo (más intenso mientras más cerca del límite de retiro, sin color en/sobre el nominal)
+function estiloDegradado(v, nominal, limite){
+  if(v===null||v===undefined||isNaN(v)) return '';
+  if(nominal===null||nominal===undefined||isNaN(nominal)) return '';
+  if(limite===null||limite===undefined||isNaN(limite)) return '';
+  if(nominal <= limite) return '';
+  let t = (v - limite) / (nominal - limite);
+  t = Math.max(0, Math.min(1, t));
+  if(t >= 0.999) return '';
+  const alpha = (1-t) * 0.5;
+  return `background:rgba(194,63,44,${alpha.toFixed(2)});font-weight:600;`;
+}
+
+function renderTabla(){
+  const wrap = $('#tablaWrap');
+  const filtro = $('#buscar').value.trim().toUpperCase();
+  let lista = puntos;
+  if(filtro) lista = lista.filter(p=> p.codigo.includes(filtro) || (p.linea||'').toUpperCase().includes(filtro));
+
+  if(lista.length===0){
+    wrap.innerHTML = `<div class="empty"><div class="big">Sin elementos registrados</div>${filtro? 'No hay coincidencias para "'+filtro+'".' : 'Agrega tu primer elemento desde la pestaña "+ Nuevo Elemento".'}</div>`;
+    return;
+  }
+
+  let html = `<div class="table-scroll"><table class="reg"><thead><tr>
+    <th style="width:85px;">Línea</th><th style="width:65px;">Técnico</th><th style="width:65px;">Ayudante</th><th style="width:50px;">Código</th><th style="width:60px;">Tipo</th><th style="width:38px;">NPS</th><th style="width:48px;">Long.</th>
+    <th>A</th><th>B</th><th>C</th><th>D</th><th style="width:48px;">Nom.</th><th style="width:48px;">Límite</th>
+    <th style="width:150px;">Observaciones</th><th style="width:34px;">📍</th><th style="width:44px;">📷</th>
+  </tr></thead><tbody>`;
+
+  lista.forEach((p, i)=>{
+    const filas = (p.lecturas && p.lecturas.length) ? p.lecturas : [{nominal:null,limite:null,valores:[]}];
+    filas.forEach((fila, fi)=>{
+      html += '<tr>';
+      if(fi===0){
+        html += `<td class="linea-cell" rowspan="${filas.length}">${esc(p.linea||'—')}</td>
+                  <td class="meta" rowspan="${filas.length}">${esc(p.tecnico||'—')}</td>
+                  <td class="meta" rowspan="${filas.length}">${esc(p.ayudante||'—')}</td>
+                  <td class="codigo-cell" rowspan="${filas.length}">${esc(p.codigo)}</td>
+                  <td class="meta" rowspan="${filas.length}">${esc(p.tipo)}</td>
+                  <td class="meta" rowspan="${filas.length}">${p.diametro||'—'}</td>
+                  <td class="meta" rowspan="${filas.length}">${p.longitud||'—'}</td>`;
+      }
+      const nom = fila.nominal;
+      const nomNum = (nom===null||nom===undefined||isNaN(nom)) ? null : Number(nom);
+      const lim = fila.limite;
+      const limNum = (lim===null||lim===undefined||isNaN(lim)) ? null : Number(lim);
+      for(let c=0;c<4;c++){
+        const v = fila.valores ? fila.valores[c] : null;
+        const vNum = (v===null||v===undefined||isNaN(v)) ? null : Number(v);
+        const style = estiloDegradado(vNum, nomNum, limNum);
+        html += `<td style="${style}">${vNum===null?'—':vNum.toFixed(3)}</td>`;
+      }
+      html += `<td class="nominal-cell">${nomNum===null?'—':nomNum.toFixed(3)}</td>`;
+      html += `<td class="limite-cell">${limNum===null?'—':limNum.toFixed(3)}</td>`;
+      if(fi===0){
+        html += `<td class="obs-cell" rowspan="${filas.length}">${esc(p.observaciones||'—')}</td>`;
+        const gpsCell = p.gps && p.gps.lat ? `<span title="${p.gps.lat.toFixed(5)}, ${p.gps.lon.toFixed(5)}" style="cursor:default;">✅</span>` : '<span style="opacity:.3;">—</span>';
+        html += `<td rowspan="${filas.length}">${gpsCell}</td>`;
+        const fotoCell = p.foto ? `<img src="${p.foto}" class="tabla-thumb" onclick="verFotoGrande('${p.id}')">` : '<span style="opacity:.3;">—</span>';
+        html += `<td rowspan="${filas.length}">${fotoCell}</td>`;
+      }
+      html += '</tr>';
+    });
+    html += `<tr class="actions-row"><td colspan="16">
+        <button class="btn btn-ghost btn-small" onclick="editPunto('${p.id}')">✎ Editar</button>
+        <button class="btn btn-danger" onclick="if(confirm('¿Eliminar elemento ${esc(p.codigo)}?'))deletePunto('${p.id}')" style="margin-left:6px;">✕ Eliminar</button>
+      </td></tr>`;
+    if(i < lista.length-1) html += `<tr class="divider"><td colspan="16"></td></tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function esc(s){ return String(s).replace(/[<>&"]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+
+function verFotoGrande(id){
+  const p = puntos.find(x=>x.id===id);
+  if(!p || !p.foto) return;
+  const w = window.open('');
+  if(w) w.document.write(`<title>Foto ${esc(p.codigo)}</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${p.foto}" style="max-width:100%;max-height:100%;"></body>`);
+}
+
+// Filas planas en el MISMO orden de columnas que la plantilla real, listas para copiar y pegar tal cual.
+function buildRowsFlat(){
+  const rows = [];
+  puntos.forEach(p=>{
+    const filas = (p.lecturas && p.lecturas.length) ? p.lecturas : [{nominal:null,limite:null,valores:[]}];
+    filas.forEach(fila=>{
+      const vals = [0,1,2,3].map(c=> (fila.valores && fila.valores[c]!==null && fila.valores[c]!==undefined) ? Number(fila.valores[c]).toFixed(3) : '');
+      rows.push([
+        p.linea||'', p.codigo, p.tipo, p.diametro||'', p.longitud||'',
+        ...vals,
+        (fila.nominal===null||fila.nominal===undefined)?'':Number(fila.nominal).toFixed(3),
+        (fila.limite===null||fila.limite===undefined)?'':Number(fila.limite).toFixed(3),
+        p.observaciones||''
+      ]);
+    });
+  });
+  return rows;
+}
+
+// Genera el Excel con ExcelJS: Técnico/Ayudante como bloque arriba, Línea combinada en una sola
+// celda para toda la hoja, encabezados en negrita con fondo gris, bordes en cada celda, centrado,
+// filas separadoras en gris entre elementos, y A/B/C/D/Nominal/Límite siempre a 3 decimales.
+async function buildWorkbook(){
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Registro');
+
+  const tecnico = $('#tecnicoActual').value.trim();
+  const ayudante = $('#ayudanteActual').value.trim();
+  const temperatura = $('#temperaturaActual').value.trim();
+  const presion = $('#presionActual').value.trim();
+  const material = $('#materialActual').value.trim();
+  const lineaGlobal = ($('#lineaActual').value.trim()) || (puntos[0] && puntos[0].linea) || '';
+
+  const THIN = { style:'thin', color:{argb:'FF000000'} };
+  const BORDE = { top:THIN, bottom:THIN, left:THIN, right:THIN };
+  const RELLENO_HEADER = { type:'pattern', pattern:'solid', fgColor:{argb:'FFE2E2E2'} };
+  const RELLENO_SEP = { type:'pattern', pattern:'solid', fgColor:{argb:'FFBFBFBF'} };
+  const CENTRO = { horizontal:'center', vertical:'middle' };
+  const CENTRO_WRAP = { horizontal:'center', vertical:'middle', wrapText:true };
+  const IZQ_WRAP = { horizontal:'left', vertical:'middle', wrapText:true };
+
+  ws.getCell(1,1).value = 'Técnico'; ws.getCell(1,1).font = { bold:true };
+  ws.getCell(1,2).value = tecnico;
+  ws.getCell(2,1).value = 'Ayudante'; ws.getCell(2,1).font = { bold:true };
+  ws.getCell(2,2).value = ayudante;
+  ws.getCell(3,1).value = 'Temperatura'; ws.getCell(3,1).font = { bold:true };
+  ws.getCell(3,2).value = temperatura;
+  ws.getCell(3,3).value = 'Presión'; ws.getCell(3,3).font = { bold:true };
+  ws.getCell(3,4).value = presion;
+  ws.getCell(4,1).value = 'Material'; ws.getCell(4,1).font = { bold:true };
+  ws.getCell(4,2).value = material;
+
+  const headers = ['Línea','Código','Tipo','NPS (Ø)','Longitud (m)','A','B','C','D','Nominal (in)','Límite Retiro (in)','Observaciones'];
+  headers.forEach((h,i)=>{
+    const cell = ws.getCell(5, i+1);
+    cell.value = h;
+    cell.font = { bold:true };
+    cell.alignment = CENTRO;
+    cell.border = BORDE;
+    cell.fill = RELLENO_HEADER;
+  });
+
+  let r = 6;
+  const primeraFilaDatos = r;
+
+  puntos.forEach((p, idx)=>{
+    const filas = (p.lecturas && p.lecturas.length) ? p.lecturas : [{nominal:null,limite:null,valores:[]}];
+    const filaInicio = r;
+    filas.forEach((fila, fi)=>{
+      if(fi===0){
+        ws.getCell(r,2).value = p.codigo;
+        ws.getCell(r,3).value = p.tipo;
+        ws.getCell(r,4).value = p.diametro || '';
+        ws.getCell(r,5).value = p.longitud || '';
+        ws.getCell(r,12).value = p.observaciones || '';
+      }
+      [1,2,3,4,5].forEach(col=>{ const c = ws.getCell(r,col); c.alignment = col===1?CENTRO_WRAP:CENTRO; c.border = BORDE; });
+      const obsCell = ws.getCell(r,12); obsCell.alignment = IZQ_WRAP; obsCell.border = BORDE;
+
+      const valores = [0,1,2,3].map(c=> (fila.valores && fila.valores[c]!==null && fila.valores[c]!==undefined) ? fila.valores[c] : null);
+      [6,7,8,9].forEach((col,i)=>{
+        const cell = ws.getCell(r,col);
+        if(valores[i] !== null && !isNaN(valores[i])){ cell.value = Number(valores[i]); cell.numFmt = '0.000'; }
+        cell.alignment = CENTRO; cell.border = BORDE;
+      });
+      const nomCell = ws.getCell(r,10);
+      if(fila.nominal !== null && fila.nominal !== undefined && !isNaN(fila.nominal)){ nomCell.value = Number(fila.nominal); nomCell.numFmt = '0.000'; }
+      nomCell.alignment = CENTRO; nomCell.border = BORDE;
+      const limCell = ws.getCell(r,11);
+      if(fila.limite !== null && fila.limite !== undefined && !isNaN(fila.limite)){ limCell.value = Number(fila.limite); limCell.numFmt = '0.000'; }
+      limCell.alignment = CENTRO; limCell.border = BORDE;
+
+      r += 1;
+    });
+    const filaFin = r - 1;
+    if(filas.length > 1){
+      [2,3,4,5].forEach(col=> ws.mergeCells(filaInicio,col,filaFin,col));
+      [2,3,4,5].forEach(col=> ws.getCell(filaInicio,col).alignment = CENTRO);
+      ws.getCell(filaInicio,12).alignment = IZQ_WRAP;
+    }
+    if(idx < puntos.length - 1){
+      for(let c=1;c<=12;c++) ws.getCell(r,c).fill = RELLENO_SEP;
+      r += 1;
+    }
+  });
+
+  const ultimaFilaDatos = r - 1;
+  if(puntos.length && ultimaFilaDatos >= primeraFilaDatos){
+    ws.mergeCells(primeraFilaDatos,1,ultimaFilaDatos,1);
+    const lineaCell = ws.getCell(primeraFilaDatos,1);
+    lineaCell.value = lineaGlobal;
+    lineaCell.font = { bold:true, color:{argb:'FF1F6FEB'} };
+    lineaCell.alignment = CENTRO_WRAP;
+  }
+
+  ws.columns = [
+    {width:18},{width:9},{width:11},{width:9},{width:10},
+    {width:8},{width:8},{width:8},{width:8},{width:10},{width:11},{width:28}
+  ];
+
+  return wb;
+}
+
+function xlsxDisponible(){
+  if(typeof ExcelJS === 'undefined'){
+    alert('La librería de Excel no llegó a cargar (probablemente no había señal la primera vez que abriste la app). Conéctate a internet una vez para que quede guardada, y después funcionará sin conexión.');
+    return false;
+  }
+  return true;
+}
+
+async function descargarWorkbook(wb, filename){
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function preguntarLimpiarTrasExportar(){
+  if(puntos.length===0) return;
+  if(confirm('✅ Exportado correctamente.\n\n¿Quieres limpiar el registro para empezar a cargar elementos nuevos? (Ya quedó guardado en el archivo exportado — esto no lo borra, solo vacía la app).')){
+    puntos = [];
+    await borrarTodosLosElementos();
+    updateCount();
+    renderTabla();
+  }
+}
+
+$('#btnExportXLSX').addEventListener('click', async ()=>{
+  if(!xlsxDisponible()) return;
+  if(puntos.length===0){ alert('No hay elementos para exportar.'); return; }
+  const wb = await buildWorkbook();
+  await descargarWorkbook(wb, nombreArchivoBase() + '.xlsx');
+  await preguntarLimpiarTrasExportar();
+});
+
+// Nombre de archivo basado en la Línea/Tramo actual, para no confundir exportaciones de distintas
+// líneas hechas el mismo día (evita que el navegador agregue "(1)" al repetirse la fecha).
+function nombreArchivoBase(){
+  const linea = ($('#lineaActual').value || '').trim();
+  if(!linea) return 'registro_' + new Date().toISOString().slice(0,10);
+  const limpio = linea.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,50);
+  return limpio || ('registro_' + new Date().toISOString().slice(0,10));
+}
+
+function kmlEscape(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function buildKML(){
+  const conGps = puntos.filter(p => p.gps && p.gps.lat !== undefined && p.gps.lon !== undefined);
+  const placemarks = conGps.map(p=>{
+    const filas = (p.lecturas && p.lecturas.length) ? p.lecturas : [];
+    const lecturasTxt = filas.map((f,i)=> `F${i+1} (Nom.${f.nominal!==null&&f.nominal!==undefined?Number(f.nominal).toFixed(3):'—'}/Lím.${f.limite!==null&&f.limite!==undefined?Number(f.limite).toFixed(3):'—'}): ${(f.valores||[]).map(v=>v===null||v===undefined?'—':Number(v).toFixed(3)).join(', ')}`).join('&lt;br&gt;');
+    const desc = `Línea: ${kmlEscape(p.linea||'—')}&lt;br&gt;Tipo: ${kmlEscape(p.tipo)}&lt;br&gt;NPS: ${kmlEscape(p.diametro||'—')}&lt;br&gt;Longitud: ${kmlEscape(p.longitud||'—')} m&lt;br&gt;${lecturasTxt}&lt;br&gt;Obs: ${kmlEscape(p.observaciones||'—')}`;
+    return `  <Placemark>
+    <name>${kmlEscape(p.codigo)}</name>
+    <description>${desc}</description>
+    <Point><coordinates>${p.gps.lon},${p.gps.lat},0</coordinates></Point>
+  </Placemark>`;
+  }).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>${kmlEscape($('#lineaActual').value.trim() || 'Registro SETE Campo')}</name>
+${placemarks}
+</Document>
+</kml>`;
+}
+
+$('#btnExportKML').addEventListener('click', ()=>{
+  const conGps = puntos.filter(p => p.gps && p.gps.lat !== undefined);
+  if(conGps.length===0){ alert('Ningún elemento tiene ubicación GPS guardada todavía. Los elementos nuevos capturan GPS automático — revisa que le hayas dado permiso de ubicación al navegador.'); return; }
+  const kml = buildKML();
+  const uri = 'data:application/vnd.google-earth.kml+xml;charset=utf-8,' + encodeURIComponent(kml);
+  const a = document.createElement('a');
+  a.href = uri; a.download = nombreArchivoBase() + '_mapa.kml';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  if(conGps.length < puntos.length){
+    alert(`Se exportaron ${conGps.length} de ${puntos.length} elementos — los demás no tenían GPS guardado.`);
+  }
+});
+
+$('#btnExportFotos').addEventListener('click', async ()=>{
+  if(typeof JSZip === 'undefined'){
+    alert('La librería de ZIP no llegó a cargar (necesita internet la primera vez). Conéctate una vez y después funciona sin conexión.');
+    return;
+  }
+  const conFoto = puntos.filter(p => p.foto);
+  if(conFoto.length===0){ alert('Ningún elemento tiene foto guardada todavía.'); return; }
+  const zip = new JSZip();
+  const usados = {};
+  conFoto.forEach(p=>{
+    let nombre = (p.codigo || 'elemento').replace(/[^a-z0-9\-_]/gi,'_');
+    if(usados[nombre] !== undefined){ usados[nombre]++; nombre = `${nombre}_${usados[nombre]}`; }
+    else usados[nombre] = 0;
+    const base64 = p.foto.split(',')[1]; // quita el prefijo data:image/jpeg;base64,
+    zip.file(`${nombre}.jpg`, base64, {base64:true});
+  });
+  const blob = await zip.generateAsync({type:'blob'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombreArchivoBase() + '_fotos.zip';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  if(conFoto.length < puntos.length){
+    alert(`Se descargaron ${conFoto.length} fotos de ${puntos.length} elementos totales — los demás no tenían foto.`);
+  }
+});
+
+$('#btnExportCSV').addEventListener('click', ()=>{
+  if(puntos.length===0){ alert('No hay elementos para exportar.'); return; }
+  let csv = 'Tecnico;' + ($('#tecnicoActual').value.trim()) + '\n';
+  csv += 'Ayudante;' + ($('#ayudanteActual').value.trim()) + '\n';
+  csv += 'Temperatura;' + ($('#temperaturaActual').value.trim()) + '\n';
+  csv += 'Presion;' + ($('#presionActual').value.trim()) + '\n';
+  csv += 'Material;' + ($('#materialActual').value.trim()) + '\n';
+  csv += 'Linea;Codigo;Tipo;NPS;Longitud;A;B;C;D;Nominal;LimiteRetiro;Observaciones\n';
+  buildRowsFlat().forEach(r=>{ csv += r.map(v=>String(v).replace(/;/g,',')).join(';') + '\n'; });
+  const uri = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  const a = document.createElement('a');
+  a.href = uri; a.download = nombreArchivoBase() + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+
+// Importa un Excel generado por esta misma app (o con el mismo formato) y agrega sus elementos
+// al registro actual, sin borrar lo que ya había.
+async function importarExcel(file){
+  if(typeof ExcelJS === 'undefined'){ alert('La librería de Excel no llegó a cargar. Conéctate a internet una vez y vuelve a intentar.'); return; }
+  let wb;
+  try{
+    const buffer = await file.arrayBuffer();
+    wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+  }catch(e){ alert('No se pudo leer el archivo. ¿Seguro que es un .xlsx válido?'); return; }
+
+  const ws = wb.worksheets[0];
+  if(!ws){ alert('El archivo no tiene hojas.'); return; }
+
+  const esperado = ['Línea','Código','Tipo','NPS (Ø)','Longitud (m)','A','B','C','D','Nominal (in)','Límite Retiro (in)','Observaciones'];
+  const headerVals = [];
+  for(let c=1;c<=12;c++) headerVals.push(String(ws.getCell(3,c).value||'').trim());
+  const coincide = esperado.every((h,i)=> headerVals[i] === h);
+  if(!coincide){
+    alert('Este archivo no tiene el formato de SETE Campo (revisa que sea un Excel exportado desde esta app). No se importó nada.');
+    return;
+  }
+
+  const tecnico = String(ws.getCell(1,2).value || '').trim();
+  const ayudante = String(ws.getCell(2,2).value || '').trim();
+  const mergedVal = (r,c)=>{
+    const cell = ws.getCell(r,c);
+    if(cell.isMerged && cell.master) return cell.master.value;
+    return cell.value;
+  };
+
+  let lineaGlobal = '';
+  const nuevos = [];
+  let actual = null;
+  let ultimoCodigo = null;
+  const maxRow = ws.rowCount;
+
+  for(let r=4; r<=maxRow; r++){
+    const tieneAlgo = [2,3,4,5,6,7,8,9,10,11,12].some(c=>{
+      const v = mergedVal(r,c);
+      return v !== null && v !== undefined && String(v).trim() !== '';
+    });
+    if(!tieneAlgo){ ultimoCodigo = null; continue; }
+
+    if(!lineaGlobal){
+      const lv = mergedVal(r,1);
+      if(lv) lineaGlobal = String(lv).trim();
+    }
+
+    const codigoStr = String(mergedVal(r,2) || '').trim();
+    if(codigoStr && codigoStr !== ultimoCodigo){
+      actual = {
+        id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+        codigo: codigoStr,
+        tipo: String(mergedVal(r,3)||'').trim(),
+        diametro: String(mergedVal(r,4)||'').trim(),
+        longitud: String(mergedVal(r,5)||'').trim(),
+        linea: lineaGlobal, tecnico, ayudante,
+        observaciones: '', lecturas: [], gps: null, foto: null
+      };
+      nuevos.push(actual);
+      ultimoCodigo = codigoStr;
+    }
+    if(!actual) continue;
+
+    const obs = ws.getCell(r,12).value;
+    if(obs && String(obs).trim() && !actual.observaciones) actual.observaciones = String(obs).trim();
+
+    const A = ws.getCell(r,6).value, B = ws.getCell(r,7).value, C = ws.getCell(r,8).value, D = ws.getCell(r,9).value;
+    const nominal = ws.getCell(r,10).value, limite = ws.getCell(r,11).value;
+    actual.lecturas.push({
+      nominal: (nominal===null||nominal===undefined||nominal==='')?null:Number(nominal),
+      limite: (limite===null||limite===undefined||limite==='')?null:Number(limite),
+      valores: [A,B,C,D].map(v => (v===null||v===undefined||v==='')?null:Number(v))
+    });
+  }
+
+  if(nuevos.length===0){ alert('No se encontraron elementos en el archivo.'); return; }
+
+  puntos = puntos.concat(nuevos);
+  await Promise.all(nuevos.map(p => guardarUnElemento(p)));
+  if(lineaGlobal){ $('#lineaActual').value = lineaGlobal; await saveLinea(); }
+  if(tecnico){ $('#tecnicoActual').value = tecnico; await saveTecnico(); }
+  if(ayudante){ $('#ayudanteActual').value = ayudante; await saveAyudante(); }
+  updateCount(); poblarDatalistLineas(); renderTabla();
+  alert(`✅ Se importaron ${nuevos.length} elemento(s) desde el archivo y se agregaron a tu registro actual.`);
+}
+
+$('#importarExcelInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  await importarExcel(file);
+  e.target.value = '';
+});
+
+$('#btnCompartir').addEventListener('click', async ()=>{
+  if(!xlsxDisponible()) return;
+  if(puntos.length===0){ alert('No hay elementos para exportar.'); return; }
+  const wb = await buildWorkbook();
+  const buffer = await wb.xlsx.writeBuffer();
+  const filename = nombreArchivoBase() + '.xlsx';
+
+  // Dentro de la app nativa (Capacitor): compartir 100% nativo, garantizado en cualquier equipo.
+  if(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()){
+    try{
+      const base64 = btoa(new Uint8Array(buffer).reduce((data, b) => data + String.fromCharCode(b), ''));
+      const { Filesystem, Share } = window.Capacitor.Plugins;
+      const escritura = await Filesystem.writeFile({ path: filename, data: base64, directory: 'CACHE' });
+      await Share.share({ title: 'Registro de elementos SETE', text: $('#lineaActual').value || 'Registro de inspección', url: escritura.uri, dialogTitle: 'Compartir Excel' });
+      await preguntarLimpiarTrasExportar();
+      return;
+    }catch(e){ /* si falla, cae al método web normal de abajo */ }
+  }
+
+  const file = new File([buffer], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({ files:[file], title:'Registro de elementos SETE', text: $('#lineaActual').value || 'Registro de inspección' });
+      await preguntarLimpiarTrasExportar();
+      return;
+    }
+    catch(e){ /* usuario canceló o falló: caemos a descarga */ }
+  }
+  await descargarWorkbook(wb, filename);
+  alert('✅ Se descargó el archivo a tu carpeta de Descargas.\n\nPara compartirlo por WhatsApp/correo/Messenger: abre la app "Archivos" de tu celular → Descargas → mantén presionado el archivo → Compartir. Funciona igual en cualquier marca de celular.');
+  await preguntarLimpiarTrasExportar();
+});
+
+$('#btnLimpiar').addEventListener('click', async ()=>{
+  if(puntos.length===0) return;
+  if(confirm('Esto borrará TODOS los elementos registrados. ¿Continuar?')){
+    puntos = []; await borrarTodosLosElementos(); updateCount(); renderTabla();
+  }
+});
+
+buildLectRows(calcFilas(tipoSel.value, ''), false);
+sincronizarModoNominal();
+pedirUbicacion();
+const tiempoMaximoEspera = new Promise(resolve => setTimeout(resolve, 6000)); // por si el guardado no responde (ej. abierto como archivo suelto), nunca se queda pegada
+const cargaDatos = Promise.all([loadPuntos(), loadLinea(), loadCrew(), loadMemoriaDiametros()]);
+// La pantalla de "Nuevo Reporte" ya se ve al instante — los datos guardados se cargan de fondo
+// mientras el técnico llena Técnico/Ayudante/Temperatura/Presión/Material, sin pantalla de espera de por medio.
+$('#tecnicoActual').focus();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{ /* no disponible en este entorno, no pasa nada */ });
+  });
+}
+</script>
+</body>
+</html>
